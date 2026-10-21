@@ -1,0 +1,48 @@
+# Systèmes sources du projet GameScope
+#   partner-db : base PostgreSQL du "partenaire" (catalogue Steam Kaggle)
+#   spark      : système big data (Spark Thrift Server, protocole compatible Hive)
+#
+# Démarrage : docker compose up -d partner-db spark
+
+services:
+  partner-db:
+    image: postgres:17
+    container_name: gamescope_partner_db
+    environment:
+      POSTGRES_DB: steam_partner
+      POSTGRES_USER: ${PARTNER_DB_USER}
+      POSTGRES_PASSWORD: ${PARTNER_DB_PASSWORD}
+    ports:
+      - "5435:5432"
+    volumes:
+      - partner_data:/var/lib/postgresql/data
+      - ./sources/partner_db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PARTNER_DB_USER} -d steam_partner"]
+      interval: 5s
+      retries: 10
+
+  spark:
+    image: spark:3.5.7-python3
+    container_name: gamescope_spark
+    # Thrift Server au premier plan (sinon le conteneur s'arrête aussitôt)
+    environment:
+      SPARK_NO_DAEMONIZE: "true"
+    command: >
+      /opt/spark/sbin/start-thriftserver.sh
+      --master local[*]
+      --driver-memory 2g
+      --hiveconf hive.server2.thrift.port=10000
+      --hiveconf hive.server2.authentication=NOSASL
+    ports:
+      - "10000:10000"   # JDBC / Hive
+      - "4040:4040"     # interface web Spark
+    volumes:
+      - ./data/bigdata:/data/bigdata
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/10000'"]
+      interval: 10s
+      retries: 30
+
+volumes:
+  partner_data:
