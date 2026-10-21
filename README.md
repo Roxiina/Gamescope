@@ -3,35 +3,39 @@
 Plateforme de collecte, stockage et mise à disposition de données réelles sur
 les jeux vidéo Steam. Projet de certification Simplon, bloc E1 (RNCP 37827).
 
-## Sources de données (toutes réelles)
+```
+ Sources (6)                 Extraction (C1, C2)    Nettoyage (C3)        Stockage (C4)       Mise à disposition (C5)
+ ─────────────               ──────────────────     ──────────────        ─────────────       ───────────────────────
+ SteamSpy API      ─┐
+ Steam Store API   ─┤
+ Pages Steam       ─┤        extraction/            cleaning/             PostgreSQL          API REST
+ vgsales.csv       ─┼──────► data/raw/ ───────────► data/clean/ ────────► gamescope ────────► (à venir)
+ PostgreSQL partenaire ─┤                           games / reviews /     21 tables
+ Spark (data lake) ─┘                               sales
+```
 
-| Type | Source | Module | Sortie |
-|---|---|---|---|
-| API REST | SteamSpy (`request=all`) | `extraction/steamspy.py` | `data/raw/steamspy_games.json` |
-| API REST | Steam Store (`appdetails`, `appreviews`) | `extraction/steam_store_api.py` | `data/raw/steam_appdetails.jsonl`, `steam_reviews_api.jsonl` |
-| Web scraping | Pages du Steam Store | `extraction/steam_scraper.py` | `data/raw/steam_store_pages.jsonl` |
-| Fichier | Kaggle *Video Game Sales* (CSV) | `extraction/file_vgsales.py` | `data/raw/vgsales.parquet` |
-| Base de données | Kaggle *Steam Games* chargé dans PostgreSQL (base « partenaire ») | `extraction/db_partner.py` | `data/raw/partner_games.parquet` |
-| Big data | Kaggle *Steam Reviews 2021* (21 M avis) en data lake Parquet, interrogé via Spark Thrift Server | `extraction/bigdata_reviews.py` | `data/raw/bigdata_reviews_*.parquet` |
-
-Les requêtes SQL sont versionnées et documentées dans [`sql/`](sql/README.md).
-
-> **Note :** aucune base Steam publique n'est accessible en connexion directe. La
-> base « partenaire » et le data lake sont donc **mis en place** à partir de
-> jeux de données réels (dossier `sources/`), pour simuler les systèmes d'un
-> partenaire. Le code d'`extraction/` les traite comme des systèmes externes :
-> compte en lecture seule, connexion réseau, requêtes SQL.
+| Étape | Dossier | Documentation |
+|---|---|---|
+| Extraction (C1) | `extraction/` | [ci-dessous](#1-extraction-c1) |
+| Requêtes SQL (C2) | `sql/` | [`sql/README.md`](sql/README.md) |
+| Nettoyage et agrégation (C3) | `cleaning/` | [`cleaning/README.md`](cleaning/README.md) |
+| Base de données (C4) | `database/` | [ci-dessous](#4-base-de-données-c4), [`docs/merise.md`](docs/merise.md) |
+| RGPD (C4) | `database/rgpd_cleanup.py` | [`docs/rgpd/`](docs/rgpd/registre_traitements.md) |
 
 ## Installation
 
 Prérequis : Python 3.12, Git, Docker Desktop (au moins 4 Go de RAM disponibles).
 
 ```bash
+git clone https://github.com/Roxiina/gamescope.git && cd gamescope
 python -m venv .venv
-.venv\Scripts\activate          # Windows
+.venv\Scripts\activate          # Windows (Linux/macOS : source .venv/bin/activate)
 pip install -r requirements.txt
-cp .env.example .env            # puis renseigner les secrets (voir commentaires)
+cp .env.example .env            # puis renseigner chaque secret (voir commentaires)
 ```
+
+Les secrets (mots de passe, sel de pseudonymisation) se génèrent avec :
+`python -c "import secrets; print(secrets.token_urlsafe(24))"`.
 
 ### Données Kaggle (compte gratuit requis)
 
@@ -43,16 +47,57 @@ cp .env.example .env            # puis renseigner les secrets (voir commentaires
 | `games.csv` | [Steam Games Dataset](https://www.kaggle.com/datasets/fronkongames/steam-games-dataset) |
 | `steam_reviews.csv` | [Steam Reviews 2021](https://www.kaggle.com/datasets/najzeko/steam-reviews-2021) |
 
+### Services Docker
+
+| Service | Rôle | Port |
+|---|---|---|
+| `partner-db` | SOURCE : base PostgreSQL du partenaire | 5435 |
+| `spark` | SOURCE : Spark Thrift Server (big data) | 10000 |
+| `gamescope-db` | STOCKAGE : base du projet | 5436 |
+
+```bash
+docker compose up -d --wait                    # démarre les 3 services
+docker compose stop                            # les arrête (données conservées)
+```
+
 ### Mise en place des systèmes sources (une seule fois)
 
 ```bash
-docker compose up -d --wait partner-db       # PostgreSQL, port 5435
-python -m sources.partner_db.seed_partner_db  # charge games.csv (~15 min)
-python -m sources.bigdata.ingest_reviews      # CSV 8 Go -> Parquet (~5 min)
-docker compose up -d --wait spark            # Spark Thrift Server, port 10000
+python -m sources.partner_db.seed_partner_db   # games.csv -> PostgreSQL partenaire (~15 min)
+python -m sources.bigdata.ingest_reviews       # CSV 8 Go -> data lake Parquet (~5 min)
 ```
 
-## Lancer l'extraction
+> **Note :** aucune base Steam publique n'est accessible en connexion directe. La
+> base « partenaire » et le data lake sont donc **mis en place** à partir de
+> jeux de données réels (dossier `sources/`), pour simuler les systèmes d'un
+> partenaire. Le code d'`extraction/` les traite comme des systèmes externes :
+> compte en lecture seule, connexion réseau, requêtes SQL.
+
+## Chaîne complète
+
+```bash
+python -m extraction.main        # 1. collecte des 6 sources -> data/raw/      (~2 h la 1re fois)
+python -m cleaning.aggregate     # 2. agrégation + nettoyage -> data/clean/
+python -m database.import_db     # 3. import dans PostgreSQL GameScope
+python -m pytest tests -q        # tests (normalisation + RGPD)
+```
+
+---
+
+## 1. Extraction (C1)
+
+### Sources de données (toutes réelles)
+
+| Type | Source | Module | Sortie |
+|---|---|---|---|
+| API REST | SteamSpy (`request=all`) | `extraction/steamspy.py` | `data/raw/steamspy_games.json` |
+| API REST | Steam Store (`appdetails`, `appreviews`) | `extraction/steam_store_api.py` | `data/raw/steam_appdetails.jsonl`, `steam_reviews_api.jsonl` |
+| Web scraping | Pages du Steam Store | `extraction/steam_scraper.py` | `data/raw/steam_store_pages.jsonl` |
+| Fichier | Kaggle *Video Game Sales* (CSV) | `extraction/file_vgsales.py` | `data/raw/vgsales.parquet` |
+| Base de données | Kaggle *Steam Games* dans PostgreSQL (base « partenaire ») | `extraction/db_partner.py` | `data/raw/partner_games.parquet` |
+| Big data | Kaggle *Steam Reviews 2021* (21 M avis) en data lake Parquet, interrogé via Spark Thrift Server | `extraction/bigdata_reviews.py` | `data/raw/bigdata_reviews_*.parquet` |
+
+### Commandes
 
 ```bash
 python -m extraction.main --limit 20          # test rapide (~1 min)
@@ -62,19 +107,10 @@ python -m extraction.main --sources scraping  # une seule source
 ```
 
 La collecte est **reprenable** : si elle est interrompue (Ctrl+C, coupure réseau),
-relancer la même commande reprend là où elle s'était arrêtée. Les journaux sont
-écrits dans `logs/extraction.log`.
+relancer la même commande reprend là où elle s'était arrêtée. Journal :
+`logs/extraction.log`.
 
-## Nettoyage et agrégation (C3)
-
-```bash
-python -m cleaning.aggregate   # data/raw/ -> data/clean/ (games, reviews, sales)
-python -m pytest tests -q
-```
-
-Détails des règles : [`cleaning/README.md`](cleaning/README.md).
-
-## Déroulé du script
+### Déroulé du script
 
 1. **Initialisation** : lecture du `.env`, création des dossiers, journalisation
 2. **SteamSpy** : liste des N jeux les plus possédés (1 appel par page de 1000 jeux)
@@ -82,14 +118,18 @@ Détails des règles : [`cleaning/README.md`](cleaning/README.md).
 4. **Scraping** : tags joueurs, avis des 30 derniers jours, langues, prix affiché
 5. **Fichier, base de données, big data** : lecture et filtrage du CSV, requête
    SQL sur PostgreSQL (compte en lecture seule), requêtes Spark SQL sur le data lake
-6. **Gestion des erreurs** : relances automatiques (429/5xx, backoff exponentiel),
-   une erreur sur un jeu est journalisée sans arrêter la collecte
+6. **Gestion des erreurs** : relances automatiques (429/5xx, backoff exponentiel).
+   Une erreur sur un jeu ou sur une source est journalisée sans arrêter les autres.
 7. **Sauvegarde** : écriture ligne par ligne (JSONL), sans perte en cas d'arrêt
 
-## Contraintes des sources
+### Contraintes des sources
 
 - **Limites de débit** : SteamSpy 1 req/s (1 req/min pour `request=all`),
   Steam Store environ 200 req / 5 min, donc 1,8 s entre deux appels
+- **Bridage de Steam** : Steam signale un dépassement par des **erreurs 502** (et non
+  429). `throttled_get` (`extraction/utils.py`) fait alors des pauses de 1, 2 puis
+  4 minutes et réessaie la même requête. Un jeu abandonné après 4 échecs n'est pas
+  enregistré, et il sera retenté à la relance suivante.
 - **robots.txt** du Steam Store : `/app/` autorisé
 - **Vérification d'âge** : cookies `birthtime` / `wants_mature_content`
 - **games.csv** : en-tête défectueux (`DiscountDLC count` = deux colonnes
@@ -103,9 +143,112 @@ Détails des règles : [`cleaning/README.md`](cleaning/README.md).
   dès la collecte (API) et dès l'ingestion dans le data lake (big data). Le pseudo,
   l'avatar et l'URL du profil ne sont pas collectés.
 
-### Bridage de Steam
+## 2. Requêtes SQL (C2)
 
-Steam signale un dépassement de débit par des **erreurs 502** (et non 429).
-Dans ce cas, `throttled_get` (`extraction/utils.py`) fait des pauses de 1, 2
-puis 4 minutes et réessaie la même requête. Un jeu n'est abandonné qu'après
-4 échecs. Comme il n'est alors pas enregistré, il sera retenté à la relance suivante.
+Requêtes versionnées et documentées (choix, filtres, jointures, optimisations
+mesurées avec `EXPLAIN ANALYZE`) : [`sql/README.md`](sql/README.md).
+
+## 3. Nettoyage et agrégation (C3)
+
+```bash
+python -m cleaning.aggregate   # data/raw/ -> data/clean/ (games, reviews, sales)
+```
+
+Règles de suppression, d'homogénéisation et de rapprochement :
+[`cleaning/README.md`](cleaning/README.md).
+
+## 4. Base de données (C4)
+
+### Choix du SGBD : PostgreSQL 17
+
+| Critère | PostgreSQL | MySQL | MongoDB | SQLite |
+|---|---|---|---|---|
+| Données fortement relationnelles (6 relations n,n, clés étrangères) | ✅ | ✅ | ❌ jointures limitées | ✅ |
+| Contraintes `CHECK`, `UNIQUE NULLS NOT DISTINCT` | ✅ | partiel | ❌ | partiel |
+| Rôles et droits fins (moindre privilège, RGPD) | ✅ | ✅ | ✅ | ❌ (fichier) |
+| Accès concurrent API + équipe data | ✅ | ✅ | ✅ | ❌ |
+| Déjà utilisé pour la base partenaire (une seule technologie à maîtriser) | ✅ | | | |
+
+Les données sont structurées et fortement liées, et le RGPD impose un contrôle
+d'accès fin : un SGBD relationnel serveur s'impose. PostgreSQL l'emporte par ses
+contraintes avancées et la cohérence avec la base partenaire.
+
+Modélisation Merise (MCD, MLD, MPD, optimisation, tests) : [`docs/merise.md`](docs/merise.md).
+
+### Installation de la base
+
+```bash
+docker compose up -d --wait gamescope-db
+```
+
+Au **premier** démarrage, PostgreSQL exécute automatiquement les scripts de
+`database/init/` :
+- `01_schema.sql` crée les 21 tables, les contraintes et les index (MPD)
+- `02_roles.sh` crée les rôles `gamescope_api` et `gamescope_analyst`
+
+Vérification : `docker exec gamescope_db psql -U gamescope_admin -d gamescope -c "\dt"`.
+
+Pour **réinitialiser** la base (supprime toutes les données) :
+`docker compose down gamescope-db -v && docker compose up -d --wait gamescope-db`.
+
+### Accès à la base
+
+| Compte | Droits | Usage |
+|---|---|---|
+| `gamescope_admin` | propriétaire | import, procédures RGPD |
+| `gamescope_api` | lecture des données, écriture de `api_user` | API REST (C5) |
+| `gamescope_analyst` | lecture seule, **sans** `api_user` ni `rgpd_log` | équipe data (analyses, ML) |
+
+Connexion : hôte `localhost`, port `5436`, base `gamescope`, mots de passe dans `.env`.
+
+```python
+# Exemple pour l'équipe data
+import pandas as pd
+from sqlalchemy import create_engine
+engine = create_engine("postgresql+psycopg2://gamescope_analyst:<mot_de_passe>@localhost:5436/gamescope")
+pd.read_sql("SELECT name, metacritic_score FROM game ORDER BY metacritic_score DESC NULLS LAST LIMIT 10", engine)
+```
+
+### Script d'import : `database/import_db.py`
+
+```bash
+python -m database.import_db
+```
+
+| | |
+|---|---|
+| **Dépendances** | Python 3.12, `pandas`, `pyarrow`, `psycopg2-binary` (voir `requirements.txt`) ; base `gamescope-db` démarrée ; jeu de données `data/clean/` produit par `python -m cleaning.aggregate` |
+| **Configuration** | `.env` : `GAMESCOPE_DB_HOST`, `GAMESCOPE_DB_PORT`, `GAMESCOPE_DB_USER`, `GAMESCOPE_DB_PASSWORD` |
+| **Entrée** | `data/clean/games.parquet`, `reviews.parquet`, `sales.parquet` |
+| **Durée** | ~10 s |
+| **Journal** | `logs/import_db.log` |
+
+**Enchaînement** (ordre imposé par les clés étrangères) :
+
+1. **Jeux** : `game`, puis pour chaque référentiel (développeurs, éditeurs, genres,
+   catégories, tags, systèmes), insertion des valeurs nouvelles, récupération des
+   identifiants et remplacement des liens du jeu. Ensuite `game_review_stats_2021`.
+2. **Avis** : référentiel `language`, auteurs pseudonymisés (`author`), puis `review`
+3. **Ventes** : référentiel `platform`, éditeurs, puis `sale`
+4. **Maintenance** : `VACUUM ANALYZE` (espace réutilisable, statistiques du planificateur à jour)
+
+**Garanties :**
+- **Transactionnel** : tout l'import est une seule transaction. En cas d'erreur, un
+  rollback laisse la base dans son état précédent.
+- **Idempotent** : `INSERT ... ON CONFLICT DO UPDATE` sur les clés (`app_id`,
+  `review_id`, clé naturelle des ventes). Relancer l'import met à jour les données
+  sans créer de doublons.
+- **Insertion par lots** de 5 000 lignes (`execute_values`) : 85 000 avis en quelques secondes.
+
+### RGPD
+
+| Document | Contenu |
+|---|---|
+| [`docs/rgpd/registre_traitements.md`](docs/rgpd/registre_traitements.md) | registre des 3 traitements de données personnelles (art. 30) |
+| [`docs/rgpd/procedure_tri.md`](docs/rgpd/procedure_tri.md) | procédures de tri, fréquences, planification, droit à l'effacement |
+
+```bash
+python -m database.rgpd_cleanup --dry-run                  # simulation
+python -m database.rgpd_cleanup                            # purge mensuelle
+python -m database.rgpd_cleanup --erase-steamid <steamid>  # droit à l'effacement
+```

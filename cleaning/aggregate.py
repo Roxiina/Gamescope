@@ -16,6 +16,7 @@ import json
 import logging
 import sys
 from collections import defaultdict
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
@@ -30,6 +31,7 @@ log = logging.getLogger("cleaning")
 CLEAN_DIR = config.DATA_DIR / "clean"
 RAW = config.RAW_DIR
 FUZZY_THRESHOLD = 97      # score minimal (0-100) pour un rapprochement approché de noms
+MAX_VOTES = 1_000_000     # au-delà : valeur corrompue (le record réel est ~17 000)
 MAX_YEAR_GAP = 10         # écart max entre sortie console (vgsales) et sortie Steam
 SALES_TOLERANCE = 0.02    # écart toléré (millions) entre somme des régions et total mondial
 
@@ -80,6 +82,11 @@ def load_raw() -> dict[str, pd.DataFrame]:
     for name, df in raw.items():
         log.info("Chargé %-12s : %d lignes", name, len(df))
     return raw
+
+
+def file_date(path) -> pd.Timestamp:
+    """Date de collecte d'une source = date du fichier brut (base de la durée de conservation RGPD)."""
+    return pd.Timestamp(datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc))
 
 
 def as_list(value) -> list[str]:
@@ -229,12 +236,14 @@ def build_reviews(raw: dict, games: pd.DataFrame, report: CleaningReport) -> pd.
     api = raw["api_reviews"].rename(columns={
         "appid": "app_id", "voted_up": "recommended", "votes_up": "votes_helpful"})
     api["source"] = "steam_api"
+    api["collected_at"] = file_date(RAW / "steam_reviews_api.jsonl")
     bd = raw["bd_sample"].rename(columns={
         "review": "review_text", "author_playtime_at_review": "author_playtime_min"})
     bd["language"] = "english"  # échantillon filtré sur l'anglais par la requête Spark
     bd["source"] = "bigdata_2021"
+    bd["collected_at"] = file_date(config.EXTERNAL_DIR / "steam_reviews.csv")
     cols = ["review_id", "app_id", "author_hash", "language", "review_text", "recommended",
-            "votes_helpful", "author_playtime_min", "timestamp_created", "source"]
+            "votes_helpful", "author_playtime_min", "timestamp_created", "source", "collected_at"]
     df = pd.concat([api[cols], bd[cols]], ignore_index=True)  # API en premier : prioritaire
     report.info(t, "avis bruts (API + big data)", len(df))
 
@@ -251,12 +260,18 @@ def build_reviews(raw: dict, games: pd.DataFrame, report: CleaningReport) -> pd.
     df = drop_where(df, bad_ts, report, t, "date de publication incohérente", "review_id")
     df = drop_where(df, df["author_hash"].isna(), report, t, "auteur non identifiable", "review_id")
 
+    masked = df["review_text"].map(n.mask_personal_data)
+    report.fix(t, "RGPD : e-mails et liens masqués dans le texte des avis",
+               int((masked != df["review_text"]).sum()))
+    df["review_text"] = masked
     df["created_at"] = pd.to_datetime(df["timestamp_created"], unit="s", utc=True)
     langs = df["language"].map(n.language_code)
     report.fix(t, "langue Steam ('schinese', 'brazilian'...) -> code BCP 47", int(langs.notna().sum()))
     df["language"] = langs
     df["author_playtime_min"] = df["author_playtime_min"].where(df["author_playtime_min"] >= 0).round().astype("Int64")
-    df["votes_helpful"] = df["votes_helpful"].astype("Int64")
+    aberrant = df["votes_helpful"] > MAX_VOTES
+    report.fix(t, f"votes 'utile' aberrants (> {MAX_VOTES:,}) -> valeur manquante", int(aberrant.sum()))
+    df["votes_helpful"] = df["votes_helpful"].mask(aberrant).astype("Int64")
     df["review_id"] = df["review_id"].astype("int64")
     df["recommended"] = df["recommended"].astype(bool)
     reviews = df.drop(columns="timestamp_created").reset_index(drop=True)

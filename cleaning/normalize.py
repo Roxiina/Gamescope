@@ -173,6 +173,19 @@ def language_code(steam_language) -> str | None:
     return STEAM_LANGUAGES.get(str(steam_language).strip().lower())
 
 
+# --- Données personnelles dans le texte libre (RGPD) ------------------------
+EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+URL_RE = re.compile(r"(?:https?://|www\.)\S+", re.IGNORECASE)
+
+
+def mask_personal_data(text: str) -> str:
+    """Masque e-mails et liens (profils Steam, réseaux sociaux) dans un avis.
+
+    'contact me: bob@mail.com' -> 'contact me: [email]'
+    """
+    return URL_RE.sub("[lien]", EMAIL_RE.sub("[email]", text))
+
+
 # --- Plateformes vgsales ----------------------------------------------------
 PLATFORMS = {
     "2600": "Atari 2600", "3DO": "3DO", "3DS": "Nintendo 3DS", "DC": "Dreamcast",

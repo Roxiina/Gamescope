@@ -90,3 +90,9 @@ def test_apostrophes_and_compact_key():
 ])
 def test_sequel_markers(a, b, same):
     assert (n.sequel_markers(a) == n.sequel_markers(b)) is same
+
+
+def test_mask_personal_data():
+    assert n.mask_personal_data("add me https://steamcommunity.com/id/bob ok") == "add me [lien] ok"
+    assert n.mask_personal_data("mail: bob.smith@gmail.com") == "mail: [email]"
+    assert n.mask_personal_data("great game 10/10") == "great game 10/10"

@@ -1,8 +1,9 @@
-# Systèmes sources du projet GameScope
-#   partner-db : base PostgreSQL du "partenaire" (catalogue Steam Kaggle)
-#   spark      : système big data (Spark Thrift Server, protocole compatible Hive)
+# Services du projet GameScope
+#   partner-db   : SOURCE - base PostgreSQL du "partenaire" (catalogue Steam Kaggle)
+#   spark        : SOURCE - système big data (Spark Thrift Server, compatible Hive)
+#   gamescope-db : STOCKAGE - base PostgreSQL du projet (C4)
 #
-# Démarrage : docker compose up -d partner-db spark
+# Démarrage : docker compose up -d --wait
 
 services:
   partner-db:
@@ -44,5 +45,25 @@ services:
       interval: 10s
       retries: 30
 
+  gamescope-db:
+    image: postgres:17
+    container_name: gamescope_db
+    environment:
+      POSTGRES_DB: gamescope
+      POSTGRES_USER: ${GAMESCOPE_DB_USER}
+      POSTGRES_PASSWORD: ${GAMESCOPE_DB_PASSWORD}
+      GAMESCOPE_API_PASSWORD: ${GAMESCOPE_API_PASSWORD}
+      GAMESCOPE_ANALYST_PASSWORD: ${GAMESCOPE_ANALYST_PASSWORD}
+    ports:
+      - "5436:5432"
+    volumes:
+      - gamescope_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${GAMESCOPE_DB_USER} -d gamescope"]
+      interval: 5s
+      retries: 10
+
 volumes:
   partner_data:
+  gamescope_data:
