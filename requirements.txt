@@ -7,3 +7,5 @@ SQLAlchemy==2.0.44
 psycopg2-binary==2.9.11
 PyHive==0.7.0
 thrift==0.21.0
+rapidfuzz==3.14.5
+pytest==9.0.1

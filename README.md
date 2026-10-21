@@ -65,6 +65,15 @@ La collecte est **reprenable** : si elle est interrompue (Ctrl+C, coupure résea
 relancer la même commande reprend là où elle s'était arrêtée. Les journaux sont
 écrits dans `logs/extraction.log`.
 
+## Nettoyage et agrégation (C3)
+
+```bash
+python -m cleaning.aggregate   # data/raw/ -> data/clean/ (games, reviews, sales)
+python -m pytest tests -q
+```
+
+Détails des règles : [`cleaning/README.md`](cleaning/README.md).
+
 ## Déroulé du script
 
 1. **Initialisation** : lecture du `.env`, création des dossiers, journalisation
