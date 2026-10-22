@@ -37,11 +37,20 @@ git clone https://github.com/Roxiina/gamescope.git && cd gamescope
 python -m venv .venv
 .venv\Scripts\activate          # Windows (Linux/macOS : source .venv/bin/activate)
 pip install -r requirements.txt
-cp .env.example .env            # puis renseigner chaque secret (voir commentaires)
+python scripts/init_env.py      # crée .env et génère tous les secrets
 ```
 
-Les secrets (mots de passe, sel de pseudonymisation) se génèrent avec :
-`python -c "import secrets; print(secrets.token_urlsafe(24))"`.
+`scripts/init_env.py` copie `.env.example` en `.env` et génère aléatoirement les
+8 secrets (mots de passe des bases et de la supervision, sel de pseudonymisation,
+clé des jetons JWT).
+Il n'écrase jamais un `.env` existant.
+
+> **Attention :** les mots de passe des bases sont fixés à leur **première**
+> création. Si le `.env` est régénéré après coup, les connexions échouent
+> (`password authentication failed`). Il faut alors soit restaurer l'ancien `.env`,
+> soit recréer les bases avec `docker compose down -v`, ce qui **supprime leurs données**.
+> Le sel `PSEUDO_SALT` ne doit pas non plus changer tant que des données sont
+> conservées, sinon le droit à l'effacement ne retrouve plus les personnes.
 
 ### Données Kaggle (compte gratuit requis)
 
@@ -71,8 +80,8 @@ docker compose stop                            # les arrête (données conservé
 ### Mise en place des systèmes sources (une seule fois)
 
 ```bash
-python -m sources.partner_db.seed_partner_db   # games.csv -> PostgreSQL partenaire (~15 min)
-python -m sources.bigdata.ingest_reviews       # CSV 8 Go -> data lake Parquet (~5 min)
+python -m sources.partner_db.seed_partner_db   # games.csv -> PostgreSQL partenaire (~1 min)
+python -m sources.bigdata.ingest_reviews       # CSV 8 Go -> data lake Parquet (~2 min)
 ```
 
 > **Note :** aucune base Steam publique n'est accessible en connexion directe. La
@@ -84,12 +93,21 @@ python -m sources.bigdata.ingest_reviews       # CSV 8 Go -> data lake Parquet (
 ## Chaîne complète
 
 ```bash
-python -m extraction.main        # 1. collecte des 6 sources -> data/raw/      (~2 h la 1re fois)
+python -m extraction.main        # 1. collecte des 6 sources -> data/raw/      (~3 h la 1re fois)
 python -m cleaning.aggregate     # 2. agrégation + nettoyage -> data/clean/
 python -m database.import_db     # 3. import dans PostgreSQL GameScope
-python -m api.create_user --email admin@example.com --role admin   # 4. premier compte de l'API
+python -m api.create_user --email admin@example.com --role admin   # 4. premier compte (mot de passe demandé)
+python scripts/setup_monitoring.py   # 5. supervision (Uptime Kuma)
 python -m pytest tests -q        # tests (normalisation, RGPD, API)
 ```
+
+### Reproductibilité vérifiée
+
+L'installation complète a été rejouée depuis un **clone vierge** du dépôt GitHub,
+en suivant ce README : génération du `.env`, mise en place des deux systèmes sources,
+extraction, nettoyage, création de la base, import, premier compte, API. Les
+résultats sont identiques à l'installation d'origine (1 860 jeux du partenaire,
+315 statistiques Spark, 61 099 avis, 1 982 jeux finaux) et les 66 tests passent.
 
 ---
 
@@ -110,7 +128,7 @@ python -m pytest tests -q        # tests (normalisation, RGPD, API)
 
 ```bash
 python -m extraction.main --limit 20          # test rapide (~1 min)
-python -m extraction.main                     # collecte complète, 2000 jeux (~2 h)
+python -m extraction.main                     # collecte complète, 2000 jeux (~3 h)
 python -m extraction.main --sources scraping  # une seule source
 # sources : api, scraping, file, database, bigdata
 ```

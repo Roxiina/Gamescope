@@ -21,6 +21,7 @@ SECRETS = {
     "GAMESCOPE_API_PASSWORD": lambda: secrets.token_urlsafe(18),
     "GAMESCOPE_ANALYST_PASSWORD": lambda: secrets.token_urlsafe(18),
     "JWT_SECRET_KEY": lambda: secrets.token_urlsafe(48),
+    "UPTIME_KUMA_PASSWORD": lambda: secrets.token_urlsafe(18),
 }
 
 

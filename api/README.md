@@ -9,6 +9,8 @@ de ventes) pour les autres composants du projet : analyses, futur modèle d'IA
 - **Spécification OpenAPI 3.1** : http://localhost:8000/openapi.json, versionnée dans
   [`docs/openapi.json`](../docs/openapi.json)
 
+![Swagger UI de l'API GameScope](../docs/img/swagger.png)
+
 ## 1. Spécifications techniques
 
 | Élément | Choix | Justification |
@@ -228,10 +230,22 @@ identifiants viennent du `.env` et ne sont jamais écrits dans le code.
 | **Uptime Kuma** (http://localhost:3001) | interroge `/health` toutes les 60 s, historique de disponibilité, alertes (e-mail, Discord…) |
 | Journaux | `docker logs gamescope_api` : requêtes et erreurs détaillées |
 
-Configuration d'Uptime Kuma, la première fois :
-1. Créer le compte administrateur d'Uptime Kuma.
-2. *Add New Monitor* → type **HTTP(s)**, URL `http://api:8000/health`, intervalle 60 s.
-3. *Notifications* → ajouter un canal d'alerte (e-mail SMTP, Discord…).
+La configuration d'Uptime Kuma est **scriptée** (reproductible, idempotente) :
+
+```bash
+docker compose up -d --wait api uptime-kuma
+python scripts/setup_monitoring.py
+```
+
+Le script crée le compte administrateur (identifiants `UPTIME_KUMA_USER` et
+`UPTIME_KUMA_PASSWORD` du `.env`), une sonde HTTP sur `http://api:8000/health`
+(toutes les 60 s, alerte après 2 échecs consécutifs) et une page de statut publique :
+http://localhost:3001/status/gamescope.
+
+![Page de statut Uptime Kuma](../docs/img/uptime_kuma.png)
+
+Les canaux d'alerte (e-mail SMTP, Discord…) se branchent ensuite dans
+*Settings > Notifications*, car ils nécessitent des identifiants propres à chacun.
 
 ## 8. Tests
 
