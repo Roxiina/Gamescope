@@ -3,7 +3,8 @@
 Usage :
     python -m api.create_user --email admin@example.com --role admin
 Le mot de passe est demandé de façon masquée : il n'apparaît ni à l'écran ni
-dans l'historique du terminal.
+dans l'historique du terminal. Pour un script ou une CI :
+    echo "$MOT_DE_PASSE" | python -m api.create_user --email ... --password-stdin
 """
 import argparse
 import getpass
@@ -22,12 +23,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Créer un compte de l'API GameScope")
     parser.add_argument("--email", required=True)
     parser.add_argument("--role", choices=[r.value for r in Role], default="reader")
+    parser.add_argument("--password-stdin", action="store_true",
+                        help="lire le mot de passe sur l'entrée standard (scripts, CI)")
     args = parser.parse_args()
 
-    password = getpass.getpass("Mot de passe (12 caractères minimum) : ")
-    if password != getpass.getpass("Confirmation : "):
-        print("Les mots de passe ne correspondent pas.")
-        return 1
+    if args.password_stdin:
+        password = sys.stdin.readline().rstrip("\r\n")
+    else:
+        password = getpass.getpass("Mot de passe (12 caractères minimum) : ")
+        if password != getpass.getpass("Confirmation : "):
+            print("Les mots de passe ne correspondent pas.")
+            return 1
     try:
         body = UserCreate(email=args.email, password=password, role=args.role)
     except ValidationError as exc:

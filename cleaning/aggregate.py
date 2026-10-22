@@ -241,7 +241,8 @@ def build_reviews(raw: dict, games: pd.DataFrame, report: CleaningReport) -> pd.
         "review": "review_text", "author_playtime_at_review": "author_playtime_min"})
     bd["language"] = "english"  # échantillon filtré sur l'anglais par la requête Spark
     bd["source"] = "bigdata_2021"
-    bd["collected_at"] = file_date(config.EXTERNAL_DIR / "steam_reviews.csv")
+    # Date de l'extraction Spark (et non du CSV Kaggle, absent d'un clone du dépôt)
+    bd["collected_at"] = file_date(RAW / "bigdata_reviews_sample.parquet")
     cols = ["review_id", "app_id", "author_hash", "language", "review_text", "recommended",
             "votes_helpful", "author_playtime_min", "timestamp_created", "source", "collected_at"]
     df = pd.concat([api[cols], bd[cols]], ignore_index=True)  # API en premier : prioritaire
