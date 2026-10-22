@@ -37,7 +37,7 @@ WHERE t.name = 'Rogue-like';
 
 -- ---------------------------------------------------------------------
 -- CAS B - "Jeux bien notés (Metacritic >= 80) sortis depuis 2015"
--- Sans index : lecture séquentielle des 110 000 jeux.
+-- Sans index : lecture séquentielle des 125 855 jeux.
 -- Index composite (note, date) dans l'ordre des filtres, et PARTIEL :
 -- seuls les jeux notés (metacritic_score > 0, environ 4 %) sont indexés,
 -- l'index est donc environ 25 fois plus petit qu'un index complet.

@@ -51,6 +51,10 @@ Données issues du jeu de données final (`data/clean/`, voir C3). Champs princi
 
 ## 2. Modèle Conceptuel des Données (MCD)
 
+![MCD GameScope](img/mcd.png)
+
+*Diagramme généré par `docs/diagrams/draw_mcd.py`. La version Mermaid ci-dessous est équivalente.*
+
 **Définition :** le MCD représente les **entités** (objets du domaine, identifiés
 par un identifiant souligné), les **associations** entre elles, et leurs
 **cardinalités** `(min, max)`. Celles-ci se lisent depuis l'entité : « un JEU est

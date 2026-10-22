@@ -16,7 +16,7 @@ référentiels (développeurs, éditeurs, genres, tags).
 
 | Choix | Justification |
 |---|---|
-| **Sélection** par CTE `cible` (`unnest(:appids)`) | On ne lit que les jeux suivis (2 000) et non tout le catalogue (110 000). La liste est passée en **paramètre lié**, jamais concaténée dans le SQL : pas d'injection possible. |
+| **Sélection** par CTE `cible` (`unnest(:appids)`) | On ne lit que les jeux suivis (2 000) et non tout le catalogue (125 855). La liste est passée en **paramètre lié**, jamais concaténée dans le SQL : pas d'injection possible. |
 | **Colonnes** | Seules les colonnes utiles à l'analyse sont sélectionnées. Les textes longs (description, URLs d'images, captures d'écran) ne sont pas lus. |
 | `JOIN games` (jointure interne) | Un jeu absent du catalogue partenaire (sorti après la date du dataset) n'est pas renvoyé. Résultat obtenu : 1 860 jeux sur 2 000. |
 | `LEFT JOIN LATERAL` + `array_agg` | Une ligne par jeu, avec les relations n,n agrégées en tableaux. `LEFT` conserve un jeu sans développeur renseigné. |
@@ -35,7 +35,7 @@ Mesures `EXPLAIN (ANALYZE, BUFFERS)`, cache chaud, PostgreSQL 17 :
 | Cas | Avant | Après | Plan avant → après | Gain |
 |---|---|---|---|---|
 | **A.** jeux portant le tag « Rogue-like » | 58,0 ms | 13,7 ms | `Parallel Seq Scan` sur 1,2 M liens → `Bitmap Index Scan` (4 951 lignes) | ×4 |
-| **B.** jeux Metacritic ≥ 80 sortis depuis 2015 | 9,9 ms | 1,1 ms | `Seq Scan` sur 110 000 jeux → `Bitmap Index Scan` (971 lignes) | ×9 |
+| **B.** jeux Metacritic ≥ 80 sortis depuis 2015 | 9,9 ms | 1,1 ms | `Seq Scan` sur 125 855 jeux → `Bitmap Index Scan` (971 lignes) | ×9 |
 
 - **Cas A :** la clé primaire `(app_id, tag_id)` ne sert pas pour une recherche par
   `tag_id` seul, qui n'est pas la première colonne de l'index. Index ajouté :

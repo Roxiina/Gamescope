@@ -5,7 +5,7 @@
 -- Résultat  : 1 ligne par jeu, référentiels agrégés en tableaux
 -- =====================================================================
 WITH cible AS (
-    -- Sélection : on ne lit que les ~2000 jeux suivis, pas les 110 000 du catalogue
+    -- Sélection : on ne lit que les ~2000 jeux suivis, pas les 125 855 du catalogue
     SELECT unnest(CAST(:appids AS integer[])) AS app_id
 )
 SELECT

@@ -8,7 +8,7 @@ Dernière mise à jour : 22/10/2026.
 | | |
 |---|---|
 | Organisme | Studio commanditaire du projet GameScope (projet pédagogique Simplon) |
-| Responsable de la mise en œuvre | Développeuse data du projet GameScope |
+| Responsable de la mise en œuvre | Responsable data du projet GameScope |
 | Contact pour l'exercice des droits | adresse dédiée à communiquer sur la page d'information du projet |
 | Délégué à la protection des données (DPO) | non désigné (non obligatoire : pas de traitement à grande échelle de données sensibles ni de suivi systématique) |
 
