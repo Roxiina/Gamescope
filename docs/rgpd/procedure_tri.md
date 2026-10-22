@@ -60,7 +60,7 @@ inverse est impossible.
 1. **Réception** de la demande (e-mail). La personne fournit son steamid
    (17 chiffres, visible dans l'URL de son profil Steam).
 2. **Vérification d'identité** : la personne prouve qu'elle contrôle ce compte, par
-   exemple en ajoutant temporairement un code donné par le studio dans le résumé de
+   exemple en ajoutant temporairement un code communiqué par le responsable du projet dans le résumé de
    son profil Steam public.
 3. **Simulation**, pour connaître le nombre d'avis concernés :
    ```bash

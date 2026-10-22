@@ -1,7 +1,7 @@
 # API REST GameScope (C5)
 
 Met à disposition le jeu de données GameScope (1 982 jeux, 85 791 avis, 719 lignes
-de ventes) pour les autres composants du projet : équipe data, futur modèle d'IA
+de ventes) pour les autres composants du projet : analyses, futur modèle d'IA
 (blocs E2/E3) et application (E4).
 
 - **Documentation interactive (Swagger UI)** : http://localhost:8000/docs
@@ -73,7 +73,7 @@ uvicorn api.main:app --reload --port 8000
 Création du premier compte administrateur (mot de passe saisi de façon masquée) :
 
 ```bash
-python -m api.create_user --email admin@studio.fr --role admin
+python -m api.create_user --email admin@example.com --role admin
 ```
 
 Les comptes suivants se créent via l'API (`POST /api/v1/users`, rôle admin).
@@ -84,7 +84,7 @@ Les comptes suivants se créent via l'API (`POST /api/v1/users`, rôle admin).
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/auth/token \
-     -d "username=analyste@studio.fr" -d "password=<mot de passe>"
+     -d "username=analyste@example.com" -d "password=<mot de passe>"
 # {"access_token": "eyJhbGciOi...", "token_type": "bearer", "expires_in": 1800}
 ```
 
@@ -111,7 +111,7 @@ Chaque rôle inclut les droits des rôles précédents.
 
 | Rôle | Pour qui | Accès |
 |---|---|---|
-| `reader` | studio, application | catalogue des jeux, fiches, ventes, référentiels |
+| `reader` | consultation, future application de jeu | catalogue des jeux, fiches, ventes, référentiels |
 | `analyst` | équipe data, modèle IA | + **avis des joueurs** (données pseudonymisées), statistiques |
 | `admin` | administrateur | + gestion des comptes |
 
@@ -212,7 +212,7 @@ ensuite les navigateurs à toujours utiliser HTTPS.
 
 | Accès | Pour qui | Moyen |
 |---|---|---|
-| **API REST** (recommandé) | application, modèle IA, studio | HTTP + JWT, voir ci-dessus |
+| **API REST** (recommandé) | consultation, application, modèle IA | HTTP + JWT, voir ci-dessus |
 | **Accès direct PostgreSQL**, lecture seule | équipe data (analyses lourdes, entraînement) | rôle `gamescope_analyst`, voir le [README principal](../README.md#accès-à-la-base) |
 
 Côté serveur, l'API se connecte avec le rôle **`gamescope_api`** : lecture de toutes

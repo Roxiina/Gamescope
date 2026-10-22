@@ -5,9 +5,14 @@ Dernière mise à jour : 22/10/2026.
 
 ## Responsable du traitement
 
+> **Projet personnel et RGPD.** L'exemption « usage strictement personnel ou domestique »
+> (art. 2.2.c) ne s'applique pas : les données de tiers sont collectées à grande
+> échelle et l'API peut ouvrir un accès à d'autres personnes. Le registre est donc
+> tenu comme pour un traitement professionnel.
+
 | | |
 |---|---|
-| Organisme | Studio commanditaire du projet GameScope (projet pédagogique Simplon) |
+| Organisme | Projet personnel GameScope (réalisé dans le cadre de la formation Simplon) |
 | Responsable de la mise en œuvre | Responsable data du projet GameScope |
 | Contact pour l'exercice des droits | adresse dédiée à communiquer sur la page d'information du projet |
 | Délégué à la protection des données (DPO) | non désigné (non obligatoire : pas de traitement à grande échelle de données sensibles ni de suivi systématique) |
@@ -18,7 +23,7 @@ Dernière mise à jour : 22/10/2026.
 
 | Rubrique | Description |
 |---|---|
-| **Finalité** | Analyser la réception des jeux vidéo (taux de recommandation, sentiment exprimé, temps de jeu) pour aider le studio à orienter ses choix de conception. Sert aussi à entraîner un modèle d'analyse de sentiment (blocs E2/E3). |
+| **Finalité** | Analyser la réception des jeux vidéo (taux de recommandation, sentiment exprimé, temps de jeu) pour orienter la conception de mon futur jeu vidéo sur Steam (genre, prix, attentes des joueurs). Sert aussi à entraîner un modèle d'analyse de sentiment (blocs E2/E3). |
 | **Base légale** | Intérêt légitime (art. 6.1.f) : les avis sont **publiés volontairement** et publiquement par leurs auteurs sur Steam, et l'analyse est statistique et agrégée. Elle ne vise aucune personne en particulier. |
 | **Personnes concernées** | Auteurs d'avis publics sur le Steam Store |
 | **Données collectées** | Empreinte de l'identifiant Steam (SHA-256 salé), texte de l'avis, recommandation (oui/non), langue, date de publication, temps de jeu au moment de l'avis, nombre de votes « utile » |
@@ -37,7 +42,7 @@ Dernière mise à jour : 22/10/2026.
 |---|---|
 | **Finalité** | Authentifier les utilisateurs de l'API GameScope et contrôler leurs droits (lecture, analyse, administration) |
 | **Base légale** | Exécution d'un contrat ou de mesures précontractuelles (art. 6.1.b) : fourniture du service d'accès aux données |
-| **Personnes concernées** | Collaborateurs du studio et de l'équipe data disposant d'un compte |
+| **Personnes concernées** | Responsable du projet et personnes auxquelles un accès est ouvert (collaborateurs, testeurs) |
 | **Données collectées** | Adresse e-mail professionnelle, empreinte du mot de passe (bcrypt, jamais le mot de passe), rôle, date de création, date de dernière connexion |
 | **Destinataires** | Administrateurs de l'API uniquement. La table est **inaccessible** au rôle `gamescope_analyst`. |
 | **Transferts hors UE** | Aucun |

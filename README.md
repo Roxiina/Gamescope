@@ -3,6 +3,11 @@
 Plateforme de collecte, stockage et mise à disposition de données réelles sur
 les jeux vidéo Steam. Projet de certification Simplon, bloc E1 (RNCP 37827).
 
+**Pourquoi ce projet ?** C'est un projet personnel : je souhaite développer un jour
+mon propre jeu sur Steam. GameScope rassemble les données qui permettent de
+comprendre ce qui fait le succès d'un jeu (genres et tags porteurs, prix, accueil des
+joueurs et de la presse, ventes) avant de me lancer.
+
 ```
  Sources (6)                 Extraction (C1, C2)    Nettoyage (C3)        Stockage (C4)       Mise à disposition (C5)
  ─────────────               ──────────────────     ──────────────        ─────────────       ───────────────────────
@@ -82,7 +87,7 @@ python -m sources.bigdata.ingest_reviews       # CSV 8 Go -> data lake Parquet (
 python -m extraction.main        # 1. collecte des 6 sources -> data/raw/      (~2 h la 1re fois)
 python -m cleaning.aggregate     # 2. agrégation + nettoyage -> data/clean/
 python -m database.import_db     # 3. import dans PostgreSQL GameScope
-python -m api.create_user --email admin@studio.fr --role admin   # 4. premier compte de l'API
+python -m api.create_user --email admin@example.com --role admin   # 4. premier compte de l'API
 python -m pytest tests -q        # tests (normalisation, RGPD, API)
 ```
 

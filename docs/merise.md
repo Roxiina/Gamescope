@@ -30,7 +30,7 @@ Données issues du jeu de données final (`data/clean/`, voir C3). Champs princi
 | langue | Langue de l'avis | code BCP 47 | en, zh-Hans | API Steam |
 | ventes_na / eu / jp / autres / monde | Ventes physiques par région | unités | 7 010 000 | vgsales |
 | plateforme | Console ou PC des ventes | texte | PlayStation 3 | vgsales |
-| email, role (utilisateur API) | Compte d'accès à l'API | texte | analyste@studio.fr | API GameScope (C5) |
+| email, role (utilisateur API) | Compte d'accès à l'API | texte | analyste@example.com | API GameScope (C5) |
 
 **Règles de gestion** (d'où découlent les cardinalités) :
 

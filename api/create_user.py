@@ -1,7 +1,7 @@
 """Création d'un compte en ligne de commande (premier administrateur notamment).
 
 Usage :
-    python -m api.create_user --email admin@studio.fr --role admin
+    python -m api.create_user --email admin@example.com --role admin
 Le mot de passe est demandé de façon masquée : il n'apparaît ni à l'écran ni
 dans l'historique du terminal.
 """
