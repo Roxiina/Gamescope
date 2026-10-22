@@ -9,8 +9,8 @@ les jeux vidéo Steam. Projet de certification Simplon, bloc E1 (RNCP 37827).
  SteamSpy API      ─┐
  Steam Store API   ─┤
  Pages Steam       ─┤        extraction/            cleaning/             PostgreSQL          API REST
- vgsales.csv       ─┼──────► data/raw/ ───────────► data/clean/ ────────► gamescope ────────► (à venir)
- PostgreSQL partenaire ─┤                           games / reviews /     21 tables
+ vgsales.csv       ─┼──────► data/raw/ ───────────► data/clean/ ────────► gamescope ────────► /api/v1 (14 routes)
+ PostgreSQL partenaire ─┤                           games / reviews /     21 tables       FastAPI + JWT
  Spark (data lake) ─┘                               sales
 ```
 
@@ -21,6 +21,7 @@ les jeux vidéo Steam. Projet de certification Simplon, bloc E1 (RNCP 37827).
 | Nettoyage et agrégation (C3) | `cleaning/` | [`cleaning/README.md`](cleaning/README.md) |
 | Base de données (C4) | `database/` | [ci-dessous](#4-base-de-données-c4), [`docs/merise.md`](docs/merise.md) |
 | RGPD (C4) | `database/rgpd_cleanup.py` | [`docs/rgpd/`](docs/rgpd/registre_traitements.md) |
+| API REST (C5) | `api/` | [`api/README.md`](api/README.md), Swagger UI : http://localhost:8000/docs |
 
 ## Installation
 
@@ -54,9 +55,11 @@ Les secrets (mots de passe, sel de pseudonymisation) se génèrent avec :
 | `partner-db` | SOURCE : base PostgreSQL du partenaire | 5435 |
 | `spark` | SOURCE : Spark Thrift Server (big data) | 10000 |
 | `gamescope-db` | STOCKAGE : base du projet | 5436 |
+| `api` | MISE À DISPOSITION : API REST | 8000 |
+| `uptime-kuma` | SUPERVISION : disponibilité de l'API | 3001 |
 
 ```bash
-docker compose up -d --wait                    # démarre les 3 services
+docker compose up -d --build --wait            # démarre tous les services
 docker compose stop                            # les arrête (données conservées)
 ```
 
@@ -79,7 +82,8 @@ python -m sources.bigdata.ingest_reviews       # CSV 8 Go -> data lake Parquet (
 python -m extraction.main        # 1. collecte des 6 sources -> data/raw/      (~2 h la 1re fois)
 python -m cleaning.aggregate     # 2. agrégation + nettoyage -> data/clean/
 python -m database.import_db     # 3. import dans PostgreSQL GameScope
-python -m pytest tests -q        # tests (normalisation + RGPD)
+python -m api.create_user --email admin@studio.fr --role admin   # 4. premier compte de l'API
+python -m pytest tests -q        # tests (normalisation, RGPD, API)
 ```
 
 ---
@@ -252,3 +256,13 @@ python -m database.rgpd_cleanup --dry-run                  # simulation
 python -m database.rgpd_cleanup                            # purge mensuelle
 python -m database.rgpd_cleanup --erase-steamid <steamid>  # droit à l'effacement
 ```
+
+## 5. API REST (C5)
+
+```bash
+docker compose up -d --build --wait api   # http://localhost:8000/docs
+```
+
+API FastAPI sécurisée (JWT, 3 rôles, OWASP API Top 10), documentée au standard
+OpenAPI 3.1. Points de terminaison, authentification, sécurité, supervision et tests :
+[`api/README.md`](api/README.md).

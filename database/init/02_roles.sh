@@ -10,7 +10,7 @@ CREATE ROLE gamescope_api LOGIN PASSWORD :'api_pwd';
 GRANT CONNECT ON DATABASE gamescope TO gamescope_api;
 GRANT USAGE ON SCHEMA public TO gamescope_api;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO gamescope_api;
-GRANT INSERT, UPDATE ON api_user TO gamescope_api;
+GRANT INSERT, UPDATE, DELETE ON api_user TO gamescope_api;
 GRANT USAGE ON SEQUENCE api_user_user_id_seq TO gamescope_api;
 REVOKE SELECT ON rgpd_log FROM gamescope_api;
 

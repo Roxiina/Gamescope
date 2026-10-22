@@ -2,6 +2,8 @@
 #   partner-db   : SOURCE - base PostgreSQL du "partenaire" (catalogue Steam Kaggle)
 #   spark        : SOURCE - système big data (Spark Thrift Server, compatible Hive)
 #   gamescope-db : STOCKAGE - base PostgreSQL du projet (C4)
+#   api          : MISE À DISPOSITION - API REST FastAPI (C5)
+#   uptime-kuma  : SUPERVISION - disponibilité de l'API et alertes
 #
 # Démarrage : docker compose up -d --wait
 
@@ -64,6 +66,33 @@ services:
       interval: 5s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: gamescope_api
+    env_file: .env
+    environment:
+      # Dans le réseau Docker, la base est joignable par son nom de service
+      GAMESCOPE_DB_HOST: gamescope-db
+      GAMESCOPE_DB_PORT: "5432"
+    ports:
+      - "8000:8000"
+    depends_on:
+      gamescope-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: gamescope_monitoring
+    ports:
+      - "3001:3001"
+    volumes:
+      - monitoring_data:/app/data
+    restart: unless-stopped
+
 volumes:
   partner_data:
+  monitoring_data:
   gamescope_data:

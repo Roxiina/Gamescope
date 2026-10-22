@@ -1,0 +1,1869 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "GameScope API",
+    "description": "\nDonnÃ©es rÃ©elles sur **1 982 jeux Steam** : fiches, tags joueurs, avis pseudonymisÃ©s,\nventes par plateforme. CollectÃ©es depuis 6 sources (API Steam et SteamSpy, scraping,\nfichier vgsales, base partenaire, data lake Spark).\n\n## Authentification\n\n1. `POST /api/v1/auth/token` avec votre e-mail (`username`) et votre mot de passe\n2. Utiliser le jeton reÃ§u dans l'en-tÃªte `Authorization: Bearer <jeton>`\n   (bouton **Authorize** ci-dessus). Le jeton est valable 30 minutes.\n\n## RÃ´les\n\n| RÃ´le | AccÃ¨s |\n|---|---|\n| `reader` | jeux, ventes, rÃ©fÃ©rentiels |\n| `analyst` | + avis des joueurs, statistiques |\n| `admin` | + gestion des comptes |\n\n## Limites\n\n120 requÃªtes par minute et par adresse IP (5 pour la connexion), 100 rÃ©sultats\nmaximum par page.\n",
+    "contact": {
+      "name": "Projet GameScope",
+      "url": "https://github.com/Roxiina/gamescope"
+    },
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/auth/token": {
+      "post": {
+        "tags": [
+          "Authentification"
+        ],
+        "summary": "Obtenir un jeton d'accÃ¨s",
+        "description": "Ã‰change e-mail (`username`) et mot de passe contre un jeton JWT.\n\nLimitÃ© Ã  5 tentatives par minute et par adresse IP (protection contre le brute force).",
+        "operationId": "login_api_v1_auth_token_post",
+        "requestBody": {
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_login_api_v1_auth_token_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Identifiants invalides"
+          },
+          "429": {
+            "description": "Trop de tentatives"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Authentification"
+        ],
+        "summary": "Mon compte",
+        "description": "Renvoie uniquement le compte du porteur du jeton.",
+        "operationId": "me_api_v1_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/games": {
+      "get": {
+        "tags": [
+          "Jeux"
+        ],
+        "summary": "Rechercher des jeux",
+        "operationId": "list_games_api_v1_games_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 2,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Recherche dans le nom",
+              "title": "Q"
+            },
+            "description": "Recherche dans le nom"
+          },
+          {
+            "name": "genre",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 50
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "examples": [
+                "RPG"
+              ],
+              "title": "Genre"
+            }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 50
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "examples": [
+                "Open World"
+              ],
+              "title": "Tag"
+            }
+          },
+          {
+            "name": "min_metacritic",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 100,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Metacritic"
+            }
+          },
+          {
+            "name": "released_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Released After"
+            }
+          },
+          {
+            "name": "released_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Released Before"
+            }
+          },
+          {
+            "name": "is_free",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Is Free"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GameSort",
+              "default": "name"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "100 rÃ©sultats maximum par page",
+              "default": 20,
+              "title": "Size"
+            },
+            "description": "100 rÃ©sultats maximum par page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_GameSummary_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{app_id}": {
+      "get": {
+        "tags": [
+          "Jeux"
+        ],
+        "summary": "Fiche dÃ©taillÃ©e d'un jeu",
+        "operationId": "get_game_api_v1_games__app_id__get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "App Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Jeu inexistant"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{app_id}/sales": {
+      "get": {
+        "tags": [
+          "Jeux"
+        ],
+        "summary": "Ventes par plateforme",
+        "operationId": "get_sales_api_v1_games__app_id__sales_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "App Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SaleOut"
+                  },
+                  "title": "Response Get Sales Api V1 Games  App Id  Sales Get"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Jeu inexistant"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{app_id}/reviews": {
+      "get": {
+        "tags": [
+          "Jeux"
+        ],
+        "summary": "Avis des joueurs",
+        "description": "Avis pseudonymisÃ©s : aucun identifiant d'auteur n'est renvoyÃ©. RÃ©servÃ© au rÃ´le analyst.",
+        "operationId": "get_reviews_api_v1_games__app_id__reviews_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "app_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "App Id"
+            }
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 10
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Code BCP 47",
+              "examples": [
+                "en"
+              ],
+              "title": "Language"
+            },
+            "description": "Code BCP 47"
+          },
+          {
+            "name": "recommended",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Recommended"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Page_ReviewOut_"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Jeu inexistant"
+          },
+          "403": {
+            "description": "RÃ´le analyst requis"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/genres": {
+      "get": {
+        "tags": [
+          "RÃ©fÃ©rentiels"
+        ],
+        "summary": "Genres et nombre de jeux",
+        "operationId": "list_genres_api_v1_genres_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NamedCount"
+                  },
+                  "type": "array",
+                  "title": "Response List Genres Api V1 Genres Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/tags": {
+      "get": {
+        "tags": [
+          "RÃ©fÃ©rentiels"
+        ],
+        "summary": "Tags joueurs les plus utilisÃ©s",
+        "operationId": "list_tags_api_v1_tags_get",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NamedCount"
+                  },
+                  "title": "Response List Tags Api V1 Tags Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/platforms": {
+      "get": {
+        "tags": [
+          "RÃ©fÃ©rentiels"
+        ],
+        "summary": "Plateformes des ventes",
+        "operationId": "list_platforms_api_v1_platforms_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NamedCount"
+                  },
+                  "type": "array",
+                  "title": "Response List Platforms Api V1 Platforms Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats/genres": {
+      "get": {
+        "tags": [
+          "Statistiques"
+        ],
+        "summary": "Indicateurs par genre",
+        "description": "Note Metacritic moyenne, % d'avis positifs, prix moyen et part de free-to-play par genre.",
+        "operationId": "genre_stats_api_v1_stats_genres_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/GenreStats"
+                  },
+                  "type": "array",
+                  "title": "Response Genre Stats Api V1 Stats Genres Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stats/sales-by-platform": {
+      "get": {
+        "tags": [
+          "Statistiques"
+        ],
+        "summary": "Ventes cumulÃ©es par plateforme",
+        "operationId": "sales_by_platform_api_v1_stats_sales_by_platform_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformSales"
+                  },
+                  "type": "array",
+                  "title": "Response Sales By Platform Api V1 Stats Sales By Platform Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users": {
+      "get": {
+        "tags": [
+          "Comptes (admin)"
+        ],
+        "summary": "Lister les comptes",
+        "operationId": "list_users_api_v1_users_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Users Api V1 Users Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Comptes (admin)"
+        ],
+        "summary": "CrÃ©er un compte",
+        "operationId": "create_user_api_v1_users_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "E-mail dÃ©jÃ  utilisÃ©"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/users/{user_id}": {
+      "delete": {
+        "tags": [
+          "Comptes (admin)"
+        ],
+        "summary": "Supprimer un compte",
+        "operationId": "delete_user_api_v1_users__user_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Compte inexistant"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Supervision"
+        ],
+        "summary": "Ã‰tat du service",
+        "description": "VÃ©rifie que l'API rÃ©pond et que la base est joignable (sans authentification).",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Body_login_api_v1_auth_token_post": {
+        "properties": {
+          "grant_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^password$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grant Type"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "title": "Password"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": ""
+          },
+          "client_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Id"
+          },
+          "client_secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "format": "password",
+            "title": "Client Secret"
+          }
+        },
+        "type": "object",
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "Body_login_api_v1_auth_token_post"
+      },
+      "GameDetail": {
+        "properties": {
+          "app_id": {
+            "type": "integer",
+            "title": "App Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "release_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Release Date"
+          },
+          "price_eur": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Eur"
+          },
+          "is_free": {
+            "type": "boolean",
+            "title": "Is Free"
+          },
+          "metacritic_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metacritic Score"
+          },
+          "pct_positive": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Positive"
+          },
+          "owners_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owners Min"
+          },
+          "owners_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owners Max"
+          },
+          "price_initial_eur": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Initial Eur"
+          },
+          "discount_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Discount Pct"
+          },
+          "required_age": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Age"
+          },
+          "positive_reviews": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Positive Reviews"
+          },
+          "negative_reviews": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Reviews"
+          },
+          "recent_review_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recent Review Pct"
+          },
+          "recent_review_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recent Review Count"
+          },
+          "recent_review_desc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recent Review Desc"
+          },
+          "avg_playtime_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Playtime Min"
+          },
+          "median_playtime_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Playtime Min"
+          },
+          "peak_ccu": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Ccu"
+          },
+          "dlc_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dlc Count"
+          },
+          "achievements": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Achievements"
+          },
+          "recommendations": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recommendations"
+          },
+          "languages_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Languages Count"
+          },
+          "developers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Developers"
+          },
+          "publishers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Publishers"
+          },
+          "genres": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Genres"
+          },
+          "categories": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Categories"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Tags joueurs, du plus votÃ© au moins votÃ©"
+          },
+          "operating_systems": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Operating Systems"
+          },
+          "stats_2021": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Stats2021Out"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "app_id",
+          "name",
+          "release_date",
+          "price_eur",
+          "is_free",
+          "metacritic_score",
+          "pct_positive",
+          "owners_min",
+          "owners_max",
+          "price_initial_eur",
+          "discount_pct",
+          "required_age",
+          "positive_reviews",
+          "negative_reviews",
+          "recent_review_pct",
+          "recent_review_count",
+          "recent_review_desc",
+          "avg_playtime_min",
+          "median_playtime_min",
+          "peak_ccu",
+          "dlc_count",
+          "achievements",
+          "recommendations",
+          "languages_count",
+          "developers",
+          "publishers",
+          "genres",
+          "categories",
+          "tags",
+          "operating_systems",
+          "stats_2021",
+          "updated_at"
+        ],
+        "title": "GameDetail"
+      },
+      "GameSort": {
+        "type": "string",
+        "enum": [
+          "name",
+          "release_date",
+          "-release_date",
+          "-metacritic_score",
+          "-pct_positive",
+          "-owners_max"
+        ],
+        "title": "GameSort",
+        "description": "Tris autorisÃ©s : liste fermÃ©e, jamais de nom de colonne venant du client."
+      },
+      "GameSummary": {
+        "properties": {
+          "app_id": {
+            "type": "integer",
+            "title": "App Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "release_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Release Date"
+          },
+          "price_eur": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Eur"
+          },
+          "is_free": {
+            "type": "boolean",
+            "title": "Is Free"
+          },
+          "metacritic_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metacritic Score"
+          },
+          "pct_positive": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Positive"
+          },
+          "owners_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owners Min"
+          },
+          "owners_max": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owners Max"
+          }
+        },
+        "type": "object",
+        "required": [
+          "app_id",
+          "name",
+          "release_date",
+          "price_eur",
+          "is_free",
+          "metacritic_score",
+          "pct_positive",
+          "owners_min",
+          "owners_max"
+        ],
+        "title": "GameSummary"
+      },
+      "GenreStats": {
+        "properties": {
+          "genre": {
+            "type": "string",
+            "title": "Genre"
+          },
+          "nb_games": {
+            "type": "integer",
+            "title": "Nb Games"
+          },
+          "avg_metacritic": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Metacritic"
+          },
+          "avg_pct_positive": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Pct Positive"
+          },
+          "avg_price_eur": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Price Eur"
+          },
+          "pct_free": {
+            "type": "string",
+            "title": "Pct Free"
+          }
+        },
+        "type": "object",
+        "required": [
+          "genre",
+          "nb_games",
+          "avg_metacritic",
+          "avg_pct_positive",
+          "avg_price_eur",
+          "pct_free"
+        ],
+        "title": "GenreStats"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "NamedCount": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "nb_games": {
+            "type": "integer",
+            "title": "Nb Games"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "nb_games"
+        ],
+        "title": "NamedCount"
+      },
+      "Page_GameSummary_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GameSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Nombre total de rÃ©sultats pour ces filtres"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size",
+          "pages"
+        ],
+        "title": "Page[GameSummary]"
+      },
+      "Page_ReviewOut_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Nombre total de rÃ©sultats pour ces filtres"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "size",
+          "pages"
+        ],
+        "title": "Page[ReviewOut]"
+      },
+      "PlatformSales": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "nb_games": {
+            "type": "integer",
+            "title": "Nb Games"
+          },
+          "total_units": {
+            "type": "integer",
+            "title": "Total Units"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "nb_games",
+          "total_units"
+        ],
+        "title": "PlatformSales"
+      },
+      "ReviewOut": {
+        "properties": {
+          "review_id": {
+            "type": "integer",
+            "title": "Review Id"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "review_text": {
+            "type": "string",
+            "title": "Review Text"
+          },
+          "recommended": {
+            "type": "boolean",
+            "title": "Recommended"
+          },
+          "votes_helpful": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Votes Helpful"
+          },
+          "author_playtime_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author Playtime Min"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "review_id",
+          "language",
+          "review_text",
+          "recommended",
+          "votes_helpful",
+          "author_playtime_min",
+          "created_at",
+          "source"
+        ],
+        "title": "ReviewOut",
+        "description": "Avis SANS identifiant d'auteur, mÃªme pseudonymisÃ© (minimisation RGPD)."
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "reader",
+          "analyst",
+          "admin"
+        ],
+        "title": "Role"
+      },
+      "SaleOut": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "publisher": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publisher"
+          },
+          "vgsales_name": {
+            "type": "string",
+            "title": "Vgsales Name"
+          },
+          "release_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Year"
+          },
+          "sales_na_units": {
+            "type": "integer",
+            "title": "Sales Na Units"
+          },
+          "sales_eu_units": {
+            "type": "integer",
+            "title": "Sales Eu Units"
+          },
+          "sales_jp_units": {
+            "type": "integer",
+            "title": "Sales Jp Units"
+          },
+          "sales_other_units": {
+            "type": "integer",
+            "title": "Sales Other Units"
+          },
+          "sales_global_units": {
+            "type": "integer",
+            "title": "Sales Global Units"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "publisher",
+          "vgsales_name",
+          "release_year",
+          "sales_na_units",
+          "sales_eu_units",
+          "sales_jp_units",
+          "sales_other_units",
+          "sales_global_units"
+        ],
+        "title": "SaleOut"
+      },
+      "Stats2021Out": {
+        "properties": {
+          "nb_reviews": {
+            "type": "integer",
+            "title": "Nb Reviews"
+          },
+          "pct_recommended": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct Recommended"
+          },
+          "median_playtime_min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Playtime Min"
+          },
+          "nb_languages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nb Languages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "nb_reviews",
+          "pct_recommended",
+          "median_playtime_min",
+          "nb_languages"
+        ],
+        "title": "Stats2021Out"
+      },
+      "Token": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In",
+            "description": "DurÃ©e de validitÃ© en secondes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_in"
+        ],
+        "title": "Token"
+      },
+      "UserCreate": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "title": "Password",
+            "description": "12 caractÃ¨res minimum"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role",
+            "default": "reader"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "UserCreate"
+      },
+      "UserOut": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "email",
+          "role",
+          "created_at",
+          "last_login_at"
+        ],
+        "title": "UserOut"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "OAuth2PasswordBearer": {
+        "type": "oauth2",
+        "flows": {
+          "password": {
+            "scopes": {},
+            "tokenUrl": "/api/v1/auth/token"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Authentification",
+      "description": "Obtention d'un jeton JWT"
+    },
+    {
+      "name": "Jeux",
+      "description": "Catalogue, fiches, ventes et avis"
+    },
+    {
+      "name": "RÃ©fÃ©rentiels",
+      "description": "Valeurs possibles des filtres"
+    },
+    {
+      "name": "Statistiques",
+      "description": "Indicateurs agrÃ©gÃ©s (rÃ´le analyst)"
+    },
+    {
+      "name": "Comptes (admin)",
+      "description": "Gestion des utilisateurs (rÃ´le admin)"
+    },
+    {
+      "name": "Supervision",
+      "description": "Ã‰tat du service"
+    }
+  ]
+}

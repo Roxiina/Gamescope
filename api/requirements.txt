@@ -1,0 +1,11 @@
+# Dépendances de l'API seule (image Docker légère)
+fastapi==0.121.3
+uvicorn==0.38.0
+SQLAlchemy==2.0.44
+psycopg2-binary==2.9.11
+pydantic-settings==2.13.1
+email-validator==2.2.0
+python-multipart==0.0.20
+PyJWT==2.13.0
+bcrypt==5.0.0
+slowapi==0.1.9
