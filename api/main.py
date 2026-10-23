@@ -51,7 +51,7 @@ app = FastAPI(
     title="GameScope API",
     version="1.0.0",
     description=DESCRIPTION,
-    contact={"name": "Projet GameScope", "url": "https://github.com/Roxiina/gamescope"},
+    contact={"name": "Projet GameScope", "url": "https://github.com/Roxiina/Gamescope"},
     openapi_tags=[
         {"name": "Authentification", "description": "Obtention d'un jeton JWT"},
         {"name": "Jeux", "description": "Catalogue, fiches, ventes et avis"},

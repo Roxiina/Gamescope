@@ -33,7 +33,7 @@ joueurs et de la presse, ventes) avant de me lancer.
 Prérequis : Python 3.12, Git, Docker Desktop (au moins 4 Go de RAM disponibles).
 
 ```bash
-git clone https://github.com/Roxiina/gamescope.git && cd gamescope
+git clone https://github.com/Roxiina/Gamescope.git && cd gamescope
 python -m venv .venv
 .venv\Scripts\activate          # Windows (Linux/macOS : source .venv/bin/activate)
 pip install -r requirements.txt

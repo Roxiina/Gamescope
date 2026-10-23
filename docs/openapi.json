@@ -5,7 +5,7 @@
     "description": "\nDonnÃ©es rÃ©elles sur **1 982 jeux Steam** : fiches, tags joueurs, avis pseudonymisÃ©s,\nventes par plateforme. CollectÃ©es depuis 6 sources (API Steam et SteamSpy, scraping,\nfichier vgsales, base partenaire, data lake Spark).\n\n## Authentification\n\n1. `POST /api/v1/auth/token` avec votre e-mail (`username`) et votre mot de passe\n2. Utiliser le jeton reÃ§u dans l'en-tÃªte `Authorization: Bearer <jeton>`\n   (bouton **Authorize** ci-dessus). Le jeton est valable 30 minutes.\n\n## RÃ´les\n\n| RÃ´le | AccÃ¨s |\n|---|---|\n| `reader` | jeux, ventes, rÃ©fÃ©rentiels |\n| `analyst` | + avis des joueurs, statistiques |\n| `admin` | + gestion des comptes |\n\n## Limites\n\n120 requÃªtes par minute et par adresse IP (5 pour la connexion), 100 rÃ©sultats\nmaximum par page.\n",
     "contact": {
       "name": "Projet GameScope",
-      "url": "https://github.com/Roxiina/gamescope"
+      "url": "https://github.com/Roxiina/Gamescope"
     },
     "version": "1.0.0"
   },
